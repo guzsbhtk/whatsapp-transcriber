@@ -1,0 +1,4 @@
+whisper
+ffmpeg-python
+openai
+certifi
