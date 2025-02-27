@@ -84,7 +84,6 @@ function transcribeAudio(audioFile, sender, msg) {
 
         const transcription = stdout.trim();
         console.log(`📜 Transcription (${sender}): ${transcription}`);
-        msg.reply(`🎙️ Transcription:\n${transcription}`);
     });
 }
 
