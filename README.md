@@ -33,7 +33,7 @@ This bot listens for WhatsApp voice messages, converts them to text using OpenAI
 
 ### 1️⃣ Clone the repository
 ```bash
-git clone https://github.com/YOUR-USERNAME/whatsapp-transcriber.git
+git clone https://github.com/guzsbhtk/whatsapp-transcriber.git
 cd whatsapp-transcriber
 ```
 
