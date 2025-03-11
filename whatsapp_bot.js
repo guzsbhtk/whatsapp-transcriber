@@ -3,9 +3,9 @@ const qrcode = require("qrcode-terminal");
 const fs = require("fs");
 const { exec } = require("child_process");
 
-// Paths and tools settings
-const PYTHON_PATH = "/Users/oz/PycharmProjects/tree/.venv/bin/python3";
-const FFMPEG_PATH = "/opt/homebrew/bin/ffmpeg";
+// Paths and tools settings (using generic commands from the PATH)
+const PYTHON_PATH = "python3"; // Will use the Python interpreter from the active environment
+const FFMPEG_PATH = "ffmpeg";  // Ensure ffmpeg is installed and available in the PATH
 const DEBUG = true; // Set to false to disable debug logs
 const SESSION_FILE = "session.json";
 const RESET_INTERVAL_DAYS = 14;
@@ -37,6 +37,7 @@ const client = new Client({
     }
 });
 
+
 client.on("qr", qr => {
     console.log("📌 Scan the QR code to connect:");
     qrcode.generate(qr, { small: true });
@@ -54,10 +55,11 @@ let isProcessing = false;
 function processQueue() {
     if (isProcessing || audioQueue.length === 0) return;
     isProcessing = true;
-    
+
+    // Extract filePath and sender from the next item in the queue
     const { filePath, sender } = audioQueue.shift();
     debugLog(`⏳ Processing file ${filePath} from user ${sender}`);
-    
+
     // Execute transcription script using Python
     exec(`${PYTHON_PATH} transcribe.py ${filePath}`, (error, stdout, stderr) => {
         if (error) {
@@ -69,10 +71,15 @@ function processQueue() {
             const transcription = stdout.trim();
             console.log(`📜 Transcription (${sender}): ${transcription}`);
         }
-        // Delete the file after processing
-        fs.unlinkSync(filePath);
-        debugLog(`🗑️ File ${filePath} deleted`);
-        
+
+        // Delete the file after processing, if it exists
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            debugLog(`🗑️ File ${filePath} deleted`);
+        } else {
+            debugLog(`🗑️ File ${filePath} was already deleted`);
+        }
+
         isProcessing = false;
         processQueue(); // Process next file in queue
     });
@@ -82,7 +89,7 @@ function processQueue() {
 function convertAndQueue(inputFile, sender) {
     const mp3File = inputFile.replace(".ogg", ".mp3");
     debugLog(`⏳ Converting file ${inputFile} to MP3...`);
-    
+
     exec(`${FFMPEG_PATH} -i ${inputFile} -acodec libmp3lame ${mp3File} -y`, (err, stdout, stderr) => {
         if (err) {
             console.error("❌ FFmpeg conversion error:", err.message);
@@ -91,7 +98,7 @@ function convertAndQueue(inputFile, sender) {
         debugLog(`✅ File successfully converted to MP3: ${mp3File}`);
         fs.unlinkSync(inputFile);
         debugLog(`🗑️ OGG file ${inputFile} deleted`);
-        
+
         // Add the converted file to the queue
         audioQueue.push({ filePath: mp3File, sender });
         processQueue();
@@ -103,13 +110,13 @@ client.on("message", async msg => {
     // Focus on voice messages (ptt)
     if (msg.hasMedia && msg.type === "ptt") {
         console.log(`🎙️ Voice message received from ${msg.from}`);
-        
+
         const timestamp = Date.now();
         const oggFile = `voice_${timestamp}.ogg`;
         const media = await msg.downloadMedia();
         fs.writeFileSync(oggFile, Buffer.from(media.data, "base64"));
         debugLog(`✅ File saved: ${oggFile}`);
-        
+
         // Convert the file and add it to the queue
         convertAndQueue(oggFile, msg.from);
     }
